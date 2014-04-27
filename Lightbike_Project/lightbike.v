@@ -232,14 +232,23 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 					state <= UNK;
 			endcase
 	end
-
+	
+	localparam SCALE = 4;
+	wire ScaledX, ScaledY;
+	
+	localparam x_offset = (640-GRID_SIZE)/2;
+	localparam y_offset = (480-GRID_SIZE)/2;
+	
+	assign ScaledX = CounterX/SCALE;
+	assign ScaledY = CounterY/SCALE;
+	assign onGrid = (CounterX>=x_offset&&CounterX<=x_offset+GRID_SIZE&&CounterY>=y_offset&&CounterY<=y_offset+GRID_SIZE);
 	// Players' current locations
-	wire G = q_I || q_Done || p1_position_y == CounterY >> 2 && p1_position_x == CounterX >> 2 || p2_position_y == CounterY >> 2 && p2_position_x == CounterX >> 2;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = q_I || q_Done || p1_position_y == CounterY && p1_position_x == CounterX || p2_position_y == CounterY && p2_position_x == CounterX;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = grid[CounterY >> 2][CounterX >> 2];
+	wire B = onGrid&&grid[CounterY-y_offset][CounterX-x_offset];
 	// The outer border
-	wire R = CounterX >> 2 < 1 || (CounterX >> 2 >= (GRID_SIZE - 1) && CounterX >> 2 < GRID_SIZE) || CounterY >> 2 < 1 || (CounterY >> 2 >= (GRID_SIZE - 1)  && CounterY >> 2 < GRID_SIZE); // && CounterX<200 && CounterY[5:3]==7;
-
+	wire R = ~onGrid;
+		
 	always @(posedge clk)
 	begin
 		vga_g <= G & inDisplayArea;
