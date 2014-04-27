@@ -52,7 +52,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 		.scan_code(keyboard_input)
 	);
 	
-	always @(posedge scan_ready)
+	always @(posedge scan_ready, posedge q_I)
 	begin
 		if (q_I)
 		begin
@@ -241,7 +241,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	assign ScaledX = CounterX/SCALE;
 	assign ScaledY = CounterY/SCALE;
-	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE);
+	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1);
 	// Players' current locations
 	wire G = q_I || q_Done || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
