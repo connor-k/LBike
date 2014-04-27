@@ -9,8 +9,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
 	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7,PS2_DAT,PS2_CLK);
 	input ClkPort, Sw0, btnC, btnU, btnD, btnL, btnR, Sw0, Sw1;
-	input PS2_DAT;	//this needs to be defined in UCF
-	input PS2_CLK;	//this needs to be defined in UCF
+	input PS2_DAT;
+	input PS2_CLK;
 	output St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar;
 	output vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b;
 	output An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp;
@@ -22,6 +22,10 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	/*  LOCAL SIGNALS */
 	wire	reset, start, ClkPort, board_clk, clk, button_clk;
 	
+	/* Keyboard Codes 
+	   start = ack = space = 29
+		reset = escape = 76
+	*/
 	BUF BUF1 (board_clk, ClkPort); 	
 	BUF BUF2 (reset, Sw0);
 	BUF BUF3 (start, Sw1);
@@ -37,6 +41,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	end
 
 	wire[7:0] keyboard_input;
+	reg[7:0] keyboard_buffer;
 	wire read;
 	wire scan_ready;
 	wire CLOCK_50;
@@ -61,13 +66,12 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	always @(posedge scan_ready)
 	begin
 		//do something with keyboard_in
-		SSD2 <= keyboard_in[7:4];
-		SSD3 <= keyboard_in[3:0];
+		keyboard_buffer <= keyboard_input;
 	end
 	
 
 	
-	assign	button_clk = DIV_CLK[18];
+	//assign	button_clk = DIV_CLK[18];
 	assign	clk = DIV_CLK[1];
 	assign 	{St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar} = {5'b11111};
 	
@@ -81,8 +85,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
 	//reg [9:0] position;
-	localparam GRID_SIZE = 64;
-	localparam LOG_GRID_SIZE = 6;
+	localparam GRID_SIZE = 32;
+	localparam LOG_GRID_SIZE = 8;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
 	reg [1:0] p1_direction;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_x;
@@ -91,14 +95,15 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	// States
 	// Store the current state and output it to top module.
 	wire q_I, q_Straight, q_Collision, q_Done;
-	reg collision;
-	always @ (start, p1_position_y, p1_position_x)
+	wire collision;
+	assign collision = grid[p1_position_y][p1_position_x];
+	/*always @ (start, p1_position_y, p1_position_x)
 	begin
 		if (start)
 			collision <= 0;
 		else if (grid[p1_position_y][p1_position_x]) //TODO add || head-on collision
 			collision <= 1;
-	end
+	end */
 	
 	reg [3:0] state;
 	assign {q_I, q_Driving, q_Collision, q_Done} = state;
@@ -161,6 +166,16 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					// Mark the grid at last clock's position to be visited
 					grid[p1_position_y][p1_position_x] <= 1;
 					
+					/* Keyboard codes:
+						W = 
+						S = 
+						A = 
+						D = 
+						UP = 
+						DOWN = 
+						LEFT = 
+						RIGHT = 
+					*/
 					// BtnL and BtnU control P1 turn left or right
 					if (btnU)
 						p1_direction = p1_direction + 1;
@@ -242,7 +257,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	assign LD1 = 1;//(p2_score == 4'b1010);
 	
 	assign LD2 = start;
-	assign LD4 = reset;
+	assign LD4 = DIV_CLK[25]; //reset;
 	
 	assign LD3 = (state == `QI);
 	assign LD5 = (state == `QDRIVING);
@@ -260,8 +275,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	wire 	[3:0]	SSD0, SSD1, SSD2, SSD3;
 	wire 	[1:0] ssdscan_clk;
 	
-//	assign SSD3 = 4'b1111;
-//	assign SSD2 = 4'b1111;
+assign SSD3 = keyboard_buffer[7:4];//4'b1111;
+	assign SSD2 = keyboard_buffer[3:0];//4'b1111;
 	assign SSD1 = 4'b1111;
 	assign SSD0 = 4'b0000;//position[3:0];
 	
