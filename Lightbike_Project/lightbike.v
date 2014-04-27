@@ -132,7 +132,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 						LEFT = 66
 						RIGHT = 74
 					*/
-	//TODO
 	
 	// States
 	// Store the current state and output it to top module.
@@ -155,17 +154,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 		if (reset) 
 		begin
 			state <= I;
-			p1_position_x <= 8'bx;
-			p1_position_y <= 8'bx;
-			
-			// Initialize the grid
-			for (j = 1; j < GRID_SIZE - 2; j = j + 1)
-			begin
-				for (i = 1; i < GRID_SIZE - 2; i = i + 1)
-				begin
-					grid[j][i] <= 1'bX;
-				end
-			end
 		end
 		else
 			case (state)	
@@ -246,16 +234,16 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	end
 
 	// Players' current locations
-	wire R = q_I || q_Done || p1_position_y == CounterY >> 2 && p1_position_x == CounterX >> 2 || p2_position_y == CounterY >> 2 && p2_position_x == CounterX >> 2;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = q_I || q_Done || p1_position_y == CounterY >> 2 && p1_position_x == CounterX >> 2 || p2_position_y == CounterY >> 2 && p2_position_x == CounterX >> 2;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
 	wire B = grid[CounterY >> 2][CounterX >> 2];
 	// The outer border
-	wire G = CounterX >> 2 < 1 || (CounterX >> 2 >= (GRID_SIZE - 1) && CounterX >> 2 < GRID_SIZE) || CounterY >> 2 < 1 || (CounterY >> 2 >= (GRID_SIZE - 1)  && CounterY >> 2 < GRID_SIZE); // && CounterX<200 && CounterY[5:3]==7;
+	wire R = CounterX >> 2 < 1 || (CounterX >> 2 >= (GRID_SIZE - 1) && CounterX >> 2 < GRID_SIZE) || CounterY >> 2 < 1 || (CounterY >> 2 >= (GRID_SIZE - 1)  && CounterY >> 2 < GRID_SIZE); // && CounterX<200 && CounterY[5:3]==7;
 
 	always @(posedge clk)
 	begin
-		vga_r <= R & inDisplayArea;
-		vga_g <= (G && ~R) & inDisplayArea;
+		vga_g <= G & inDisplayArea;
+		vga_r <= (R && ~G) & inDisplayArea;
 		vga_b <= (B && ~R && ~G) & inDisplayArea;
 	end
 	
@@ -273,16 +261,12 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	//reg [3:0] p2_score;
 	//reg [3:0] p1_score;
-	//reg [1:0] state;
 	wire LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7;
-	
-	assign LD0 = 1;//(p1_score == 4'b1010);
-	assign LD1 = 1;//(p2_score == 4'b1010);
-	
-	assign LD2 = start;
-	assign LD4 = DIV_CLK[25]; //reset;
-	
-	assign LD3 = (state == `QI);
+	assign LD0 = DIV_CLK[25];//(p1_score == 4'b1010);
+	assign LD1 = start;//(p2_score == 4'b1010);
+	assign LD2 = reset;
+	assign LD3 = 0;
+	assign LD4 = (state == `QI);
 	assign LD5 = (state == `QDRIVING);
 	assign LD6 = (state == `QCOLLISION);
 	assign LD7 = (state == `QDONE);
@@ -298,10 +282,10 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	wire 	[3:0]	SSD0, SSD1, SSD2, SSD3;
 	wire 	[1:0] ssdscan_clk;
 	
-assign SSD3 = keyboard_buffer[7:4];//4'b1111;
-	assign SSD2 = keyboard_buffer[3:0];//4'b1111;
-	assign SSD1 = 4'b1111;
-	assign SSD0 = 4'b0000;//position[3:0];
+	assign SSD3 = keyboard_buffer[7:4];
+	assign SSD2 = keyboard_buffer[3:0];
+	assign SSD1 = 4'b1111; //TODO want to display scores in this and SSD0?
+	assign SSD0 = 4'b0000;
 	
 	// need a scan clk for the seven segment display 
 	// 191Hz (50MHz / 2^18) works well
