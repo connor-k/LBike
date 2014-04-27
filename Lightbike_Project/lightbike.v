@@ -52,7 +52,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 		.scan_code(keyboard_input)
 	);
 	
-	always @(posedge scan_ready, posedge q_I)
+	always @(posedge scan_ready)
 	begin
 		if (q_I)
 		begin
@@ -89,7 +89,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	end
 	
 	BUF BUF1 (board_clk, ClkPort);
-	reg [25:0]	DIV_CLK;
+	reg [24:0]	DIV_CLK;
 	//generate the DIV_CLK signal
 	always @ (posedge board_clk, posedge reset)  
 	begin : CLOCK_DIVIDER
@@ -111,8 +111,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	/////////////////////////////////////////////////////////////////
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
-	localparam GRID_SIZE = 32;
-	localparam LOG_GRID_SIZE = 5;
+	localparam GRID_SIZE = 16;
+	localparam LOG_GRID_SIZE = 4;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
 	reg [1:0] p1_dir;
 	reg [1:0] p2_dir;
@@ -149,7 +149,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	integer i, j;
 	// State machine
-	always @(posedge DIV_CLK[25], posedge reset)
+	always @(posedge DIV_CLK[24], posedge reset)
 	begin
 		if (reset)
 		begin
@@ -271,7 +271,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	//reg [3:0] p2_score;
 	//reg [3:0] p1_score;
 	wire LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7;
-	assign LD0 = DIV_CLK[25];//(p1_score == 4'b1010);
+	assign LD0 = DIV_CLK[24];//(p1_score == 4'b1010);
 	assign LD1 = start;//(p2_score == 4'b1010);
 	assign LD2 = reset;
 	assign LD3 = 0;
