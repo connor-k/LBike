@@ -4,11 +4,11 @@
  * Spring 2014
 */
 `timescale 1ns / 1ps
-module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1, btnU, btnD, btnL, btnR, btnC,
+module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar,
 	An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
 	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7,PS2_DAT,PS2_CLK);
-	input ClkPort, Sw0, btnC, btnU, btnD, btnL, btnR, Sw0, Sw1;
+	input ClkPort;
 	input PS2_DAT;
 	input PS2_CLK;
 	output St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar;
@@ -20,7 +20,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	//////////////////////////////////////////////////////////////////////////////////////////
 	
 	/*  LOCAL SIGNALS */
-	wire	reset, start, ClkPort, board_clk, clk, button_clk;
+	wire ClkPort, board_clk, clk, button_clk;
+	reg start, reset;
 	
 	/* Keyboard Codes 
 	   start = ack = space = 29
@@ -51,13 +52,43 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	
 	always @(posedge scan_ready)
 	begin
-		//do something with keyboard_in
-		keyboard_buffer <= keyboard_input;
+		if (q_I)
+		begin
+			p1_dir = RIGHT;
+			p2_dir = LEFT;
+		end
+		else
+		begin
+			//do something with keyboard_in
+			start = 1'b0;
+			reset = 1'b0;
+			keyboard_buffer <= keyboard_input;
+			case(keyboard_input)
+				16'h1D://W
+					p1_dir = UP;
+				16'h1B://S
+					p1_dir = DOWN;
+				16'h1C://A
+					p1_dir = LEFT;
+				16'h23://D
+					p1_dir = RIGHT;
+				16'h75://UP
+					p2_dir = UP;
+				16'h72://DOWN
+					p2_dir = DOWN;
+				16'h66://LEFT
+					p2_dir = LEFT;
+				16'h74://RIGHT
+					p2_dir = RIGHT;
+				16'h76://escape
+					reset = 1'b1;
+				16'h29://space
+					start = 1'b1;
+			endcase
+		end
 	end
 	
 	BUF BUF1 (board_clk, ClkPort);
-	assign reset = keyboard_buffer[7:0] == 16'h76;
-	assign start = keyboard_buffer[7:0] == 16'h29;
 	reg [25:0]	DIV_CLK;
 	//generate the DIV_CLK signal
 	always @ (posedge board_clk, posedge reset)  
@@ -68,7 +99,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 			DIV_CLK <= DIV_CLK + 1'b1;
 	end
 	
-	//assign	button_clk = DIV_CLK[18];
 	assign	clk = DIV_CLK[1];
 	assign 	{St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar} = {5'b11111};
 	
@@ -81,11 +111,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	/////////////////////////////////////////////////////////////////
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
-	//reg [9:0] position;
 	localparam GRID_SIZE = 32;
 	localparam LOG_GRID_SIZE = 8;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
-	reg [1:0] p1_direction;
+	reg [1:0] p1_dir;
+	reg [1:0] p2_dir;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_x;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_y;
 	reg [LOG_GRID_SIZE - 1:0] p2_position_x;
@@ -108,14 +138,15 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	// Store the current state and output it to top module.
 	wire q_I, q_Straight, q_Collision, q_Done;
 	wire collision;
-	assign collision = grid[p1_position_y][p1_position_x];
+	assign collision = grid[p1_position_y][p1_position_x] || grid[p2_position_y][p2_position_x] || ((p1_position_y == p2_position_y) && (p1_position_x == p2_position_x));
 	
 	reg [3:0] state;
 	assign {q_I, q_Driving, q_Collision, q_Done} = state;
 	
 	// localparam's for the state case statements
 	localparam
-	I = 4'b0001, DRIVING = 4'b0010, COLLISION = 4'b0100, DONE = 4'b1000, UNK = 4'bXXXX;
+	I = 4'b0001, DRIVING = 4'b0010, COLLISION = 4'b0100, DONE = 4'b1000, UNK = 4'bXXXX,
+	UP = 2'b00, RIGHT = 2'b01, DOWN = 2'b10, LEFT = 2'b11;
 	
 	integer i, j;
 	// State machine
@@ -126,7 +157,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 			state <= I;
 			p1_position_x <= 8'bx;
 			p1_position_y <= 8'bx;
-			p1_direction = 2'bXX;
 			
 			// Initialize the grid
 			for (j = 1; j < GRID_SIZE - 2; j = j + 1)
@@ -144,10 +174,12 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					// State transfers
 					if (start)
 						state <= DRIVING;
+						
+					p1_position_x <= GRID_SIZE/4;
+					p1_position_y <= GRID_SIZE/2;
 					
-					p1_position_x <= 10;
-					p1_position_y <= 10;
-					p1_direction = 0;
+					p2_position_x <= GRID_SIZE/4*3;
+					p2_position_y <= GRID_SIZE/2;
 			
 					// Initialize the grid
 					for (j = 0; j < GRID_SIZE - 1; j = j + 1)
@@ -170,9 +202,10 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					// Data transfers
 					// Mark the grid at last clock's position to be visited
 					grid[p1_position_y][p1_position_x] <= 1;
+					grid[p2_position_y][p2_position_x] <= 1;
 					
 					// Move player1 and player2 forward one space in their current direction
-					case(p1_direction)
+					case(p1_dir) //TODO fix these...
 						UP:
 							p1_position_y <= p1_position_y - 1;
 						DOWN:
@@ -204,7 +237,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 				end
 				DONE:
 				begin
-					if (btnC)
+					if (start)
 						state <= I;
 				end
 				default:		
@@ -213,11 +246,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	end
 
 	// Players' current locations
-	wire R = q_I || q_Done || p1_position_y == CounterY && p1_position_x == CounterX;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire R = q_I || q_Done || p1_position_y == CounterY >> 2 && p1_position_x == CounterX >> 2 || p2_position_y == CounterY >> 2 && p2_position_x == CounterX >> 2;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = grid[CounterY][CounterX];
+	wire B = grid[CounterY >> 2][CounterX >> 2];
 	// The outer border
-	wire G = CounterX < 1 || (CounterX >= (GRID_SIZE - 1) && CounterX < GRID_SIZE) || CounterY < 1 || (CounterY >= (GRID_SIZE - 1)  && CounterY < GRID_SIZE); // && CounterX<200 && CounterY[5:3]==7;
+	wire G = CounterX >> 2 < 1 || (CounterX >> 2 >= (GRID_SIZE - 1) && CounterX >> 2 < GRID_SIZE) || CounterY >> 2 < 1 || (CounterY >> 2 >= (GRID_SIZE - 1)  && CounterY >> 2 < GRID_SIZE); // && CounterX<200 && CounterY[5:3]==7;
 
 	always @(posedge clk)
 	begin
