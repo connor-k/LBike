@@ -26,20 +26,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	   start = ack = space = 29
 		reset = escape = 76
 	*/
-	BUF BUF1 (board_clk, ClkPort); 	
-	BUF BUF2 (reset, Sw0);
-	BUF BUF3 (start, Sw1);
-	
-	reg [25:0]	DIV_CLK;
-	//generate the DIV_CLK signal
-	always @ (posedge board_clk, posedge reset)  
-	begin : CLOCK_DIVIDER
-      if (reset)
-			DIV_CLK <= 0;
-      else
-			DIV_CLK <= DIV_CLK + 1'b1;
-	end
-
 	wire[7:0] keyboard_input;
 	reg[7:0] keyboard_buffer;
 	wire read;
@@ -69,7 +55,20 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 		keyboard_buffer <= keyboard_input;
 	end
 	
-
+	BUF BUF1 (board_clk, ClkPort);
+	//BUF BUF2 (reset, Sw0);
+	//BUF BUF3 (start, keyboard_buffer[7:0] == 2'h29);//Sw1);
+	assign reset = keyboard_buffer[7:0] == 16'h76;
+	assign start = keyboard_buffer[7:0] == 16'h29;
+	reg [25:0]	DIV_CLK;
+	//generate the DIV_CLK signal
+	always @ (posedge board_clk, posedge reset)  
+	begin : CLOCK_DIVIDER
+      if (reset)
+			DIV_CLK <= 0;
+      else
+			DIV_CLK <= DIV_CLK + 1'b1;
+	end
 	
 	//assign	button_clk = DIV_CLK[18];
 	assign	clk = DIV_CLK[1];
@@ -321,6 +320,11 @@ assign SSD3 = keyboard_buffer[7:4];//4'b1111;
 			4'b1000: SSD_CATHODES = 7'b0000000 ; //8
 			4'b1001: SSD_CATHODES = 7'b0000100 ; //9
 			4'b1010: SSD_CATHODES = 7'b0001000 ; //10 or A
+			4'b1011: SSD_CATHODES = 7'b1100000 ; //11 or B
+			4'b1100: SSD_CATHODES = 7'b0110001 ; //12 or C
+			4'b1101: SSD_CATHODES = 7'b1000010 ; //13 or D
+			4'b1110: SSD_CATHODES = 7'b0110000 ; //14 or E
+			4'b1111: SSD_CATHODES = 7'b0111000 ; //15 or F
 			default: SSD_CATHODES = 7'bXXXXXXX ; // default is not needed as we covered all cases
 		endcase
 	end
