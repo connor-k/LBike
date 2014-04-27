@@ -140,7 +140,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	assign collision = grid[p1_position_y][p1_position_x] || grid[p2_position_y][p2_position_x] || ((p1_position_y == p2_position_y) && (p1_position_x == p2_position_x));
 	
 	reg [3:0] state;
-	assign {q_I, q_Driving, q_Collision, q_Done} = state;
+	assign {q_Done, q_Collision, q_Driving, q_I} = state;
 	
 	// localparam's for the state case statements
 	localparam
@@ -149,7 +149,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	integer i, j;
 	// State machine
-	always @(posedge DIV_CLK[24], posedge reset)
+	always @(posedge DIV_CLK[24])
 	begin
 		if (reset)
 		begin
