@@ -131,7 +131,17 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	// Store the current state and output it to top module.
 	wire q_I, q_Straight, q_Collision, q_Done;
 	wire collision;
-	assign collision = grid[p1_position_y][p1_position_x] || grid[p2_position_y][p2_position_x] || ((p1_position_y == p2_position_y) && (p1_position_x == p2_position_x));
+	wire p1_fault;
+	wire p2_fault;
+	wire both_fault;
+	
+	reg[2:0] p1_score = 0;
+	reg[2:0] p2_score = 0;
+	
+	assign p1_fault = grid[p1_position_y][p1_position_x];
+	assign p2_fault = grid[p2_position_y][p2_position_x];
+	assign both_fault = ((p1_position_y == p2_position_y) && (p1_position_x == p2_position_x));
+	assign collision =  p1_fault|| p2_fault||both_fault;
 	
 	reg [3:0] state;
 	assign {q_Done, q_Collision, q_Driving, q_I} = state;
@@ -210,7 +220,13 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 					
 					// State transfers
 					if (collision)
+					begin
 						state <= COLLISION;
+						if(p2_fault)
+							p1_score = p1_score+1;
+						if(p1_fault)
+							p2_score = p2_score+1;
+					end
 				end
 				COLLISION:
 				begin
@@ -237,9 +253,9 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	assign ScaledY = CounterY/SCALE;
 	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1*SCALE);
 	// Players' current locations
-	wire G = q_I || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = p1_fault&&!p2_fault || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = q_Done || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
+	wire B = p2_fault&&!p1_fault || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
 	// The outer border
 	wire R = onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
 		
