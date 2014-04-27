@@ -4,11 +4,11 @@
  * Spring 2014
 */
 `timescale 1ns / 1ps
-module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
+module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar,
 	An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
 	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7,PS2_DAT,PS2_CLK);
-	input ClkPort;
+	input ClkPort, Sw0;
 	input PS2_DAT;
 	input PS2_CLK;
 	output St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar;
@@ -21,9 +21,9 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	/*  LOCAL SIGNALS */
 	wire ClkPort, board_clk, clk, button_clk;
-	reg start, reset;
-	//assign start = keyboard_buffer == 16'h29;
-	//assign reset = keyboard_buffer == 16'h76;
+	reg start;
+	wire reset;
+	BUF BUF2(reset, Sw0);
 	
 	/* Keyboard Codes 
 	   start = ack = space = 29
@@ -55,7 +55,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	always @(posedge scan_ready)
 	begin
 		keyboard_buffer <= keyboard_input;
-		reset<=1'b0;
 		start<=1'b0;
 		// Get directions
 		case(keyboard_buffer)
@@ -75,8 +74,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 				p2_dir <= LEFT;
 			16'h74://RIGHT
 				p2_dir <= RIGHT;
-			16'h76://escape
-				reset <= 1'b1;
 			16'h29://space
 				start <= 1'b1;
 		endcase
@@ -84,12 +81,13 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	BUF BUF1 (board_clk, ClkPort);
 	reg [24:0]	DIV_CLK;
+	initial DIV_CLK = 0;
 	//generate the DIV_CLK signal
-	always @ (posedge board_clk, posedge reset)  
+	always @ (posedge board_clk)  
 	begin : CLOCK_DIVIDER
-      if (reset)
+		if (reset)
 			DIV_CLK <= 0;
-      else
+		else
 			DIV_CLK <= DIV_CLK + 1'b1;
 	end
 	
@@ -148,6 +146,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 		if (reset)
 		begin
 			state <= I;
+			//TODO reset scores
 		end
 		else
 			case (state)	
