@@ -56,8 +56,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	end
 	
 	BUF BUF1 (board_clk, ClkPort);
-	//BUF BUF2 (reset, Sw0);
-	//BUF BUF3 (start, keyboard_buffer[7:0] == 2'h29);//Sw1);
 	assign reset = keyboard_buffer[7:0] == 16'h76;
 	assign start = keyboard_buffer[7:0] == 16'h29;
 	reg [25:0]	DIV_CLK;
@@ -91,18 +89,24 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	reg [LOG_GRID_SIZE - 1:0] p1_position_x;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_y;
 	
+	// Assign player directions
+	/* Keyboard codes:
+						W = 1D
+						S = 1B
+						A = 1C
+						D = 23
+						UP = 75
+						DOWN = 72
+						LEFT = 66
+						RIGHT = 74
+					*/
+	//TODO
+	
 	// States
 	// Store the current state and output it to top module.
 	wire q_I, q_Straight, q_Collision, q_Done;
 	wire collision;
 	assign collision = grid[p1_position_y][p1_position_x];
-	/*always @ (start, p1_position_y, p1_position_x)
-	begin
-		if (start)
-			collision <= 0;
-		else if (grid[p1_position_y][p1_position_x]) //TODO add || head-on collision
-			collision <= 1;
-	end */
 	
 	reg [3:0] state;
 	assign {q_I, q_Driving, q_Collision, q_Done} = state;
@@ -136,7 +140,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 				I:
 				begin
 					// State transfers
-					if (btnC)
+					if (start)
 						state <= DRIVING;
 					
 			p1_position_x <= 10;
@@ -164,23 +168,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					// Data transfers
 					// Mark the grid at last clock's position to be visited
 					grid[p1_position_y][p1_position_x] <= 1;
-					
-					/* Keyboard codes:
-						W = 
-						S = 
-						A = 
-						D = 
-						UP = 
-						DOWN = 
-						LEFT = 
-						RIGHT = 
-					*/
-					// BtnL and BtnU control P1 turn left or right
-					if (btnU)
-						p1_direction = p1_direction + 1;
-					if (btnL&&~btnU)
-						p1_direction = p1_direction == 0 ? 3 : p1_direction - 1;
-					//TODO P2
 					
 					// Move forward one space
 					case(p1_direction)
