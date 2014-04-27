@@ -76,7 +76,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 					p2_dir = UP;
 				16'h72://DOWN
 					p2_dir = DOWN;
-				16'h66://LEFT
+				16'h6B://LEFT
 					p2_dir = LEFT;
 				16'h74://RIGHT
 					p2_dir = RIGHT;
