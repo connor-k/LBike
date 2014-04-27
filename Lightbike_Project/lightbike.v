@@ -21,9 +21,9 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	/*  LOCAL SIGNALS */
 	wire ClkPort, board_clk, clk, button_clk;
-	wire start, reset;
-	assign start = keyboard_buffer == 16'h29;
-	assign reset = keyboard_buffer == 16'h76;
+	reg start, reset;
+	//assign start = keyboard_buffer == 16'h29;
+	//assign reset = keyboard_buffer == 16'h76;
 	
 	/* Keyboard Codes 
 	   start = ack = space = 29
@@ -54,38 +54,32 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	always @(posedge scan_ready)
 	begin
-		if (q_I)
-		begin
-			p1_dir = RIGHT;
-			p2_dir = LEFT;
-		end
-		else
-		begin
-			//do something with keyboard_in
-			keyboard_buffer <= keyboard_input;
-			case(keyboard_input)
-				16'h1D://W
-					p1_dir = UP;
-				16'h1B://S
-					p1_dir = DOWN;
-				16'h1C://A
-					p1_dir = LEFT;
-				16'h23://D
-					p1_dir = RIGHT;
-				16'h75://UP
-					p2_dir = UP;
-				16'h72://DOWN
-					p2_dir = DOWN;
-				16'h6B://LEFT
-					p2_dir = LEFT;
-				16'h74://RIGHT
-					p2_dir = RIGHT;
-				/*/16'h76://escape
-					reset = 1'b1;
-				16'h29://space
-					start = 1'b1; */
-			endcase
-		end
+		keyboard_buffer <= keyboard_input;
+		reset<=1'b0;
+		start<=1'b0;
+		// Get directions
+		case(keyboard_input)
+			16'h1D://W
+				p1_dir <= UP;
+			16'h1B://S
+				p1_dir <= DOWN;
+			16'h1C://A
+				p1_dir <= LEFT;
+			16'h23://D
+				p1_dir <= RIGHT;
+			16'h75://UP
+				p2_dir <= UP;
+			16'h72://DOWN
+				p2_dir <= DOWN;
+			16'h6B://LEFT
+				p2_dir <= LEFT;
+			16'h74://RIGHT
+				p2_dir <= RIGHT;
+			16'h76://escape
+				reset <= 1'b1;
+			16'h29://space
+				start <= 1'b1;
+		endcase
 	end
 	
 	BUF BUF1 (board_clk, ClkPort);
@@ -191,7 +185,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 					// Mark the grid at last clock's position to be visited
 					grid[p1_position_y][p1_position_x] <= 1;
 					grid[p2_position_y][p2_position_x] <= 1;
-					
+			
 					// Move player1 and player2 forward one space in their current direction
 					case(p1_dir) //TODO fix these...
 						UP:
@@ -241,19 +235,19 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	assign ScaledX = CounterX/SCALE;
 	assign ScaledY = CounterY/SCALE;
-	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1);
+	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-2&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-2);
 	// Players' current locations
-	wire G = q_I || q_Done || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = q_I || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
+	wire B = q_Done || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
 	// The outer border
-	wire R = ~onGrid;
+	wire R = onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
 		
 	always @(posedge clk)
 	begin
 		vga_g <= G & inDisplayArea;
-		vga_r <= (R && ~G) & inDisplayArea;
-		vga_b <= (B && ~R && ~G) & inDisplayArea;
+		vga_r <= (R && ~B && ~G) & inDisplayArea;
+		vga_b <= (B && ~G) & inDisplayArea;
 	end
 	
 	/////////////////////////////////////////////////////////////////
