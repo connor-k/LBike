@@ -58,7 +58,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 		reset<=1'b0;
 		start<=1'b0;
 		// Get directions
-		case(keyboard_input)
+		case(keyboard_buffer)
 			16'h1D://W
 				p1_dir <= UP;
 			16'h1B://S
@@ -235,7 +235,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	assign ScaledX = CounterX/SCALE;
 	assign ScaledY = CounterY/SCALE;
-	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-2&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-2);
+	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1*SCALE);
 	// Players' current locations
 	wire G = q_I || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
