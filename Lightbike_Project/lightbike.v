@@ -57,6 +57,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 		keyboard_buffer <= keyboard_input;
 		start<=1'b0;
 		// Get directions
+		if (q_I)
+		begin
+			p1_dir <= RIGHT;
+			p2_dir <= LEFT;
+		end
 		case(keyboard_buffer)
 			16'h1D://W
 				p1_dir <= UP;
@@ -103,8 +108,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	/////////////////////////////////////////////////////////////////
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
-	localparam GRID_SIZE = 16;
-	localparam LOG_GRID_SIZE = 4;
+	localparam GRID_SIZE = 128;
+	localparam LOG_GRID_SIZE = 7;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
 	reg [1:0] p1_dir;
 	reg [1:0] p2_dir;
@@ -133,8 +138,10 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	wire p2_fault;
 	wire both_fault;
 	
-	reg[2:0] p1_score = 0;
-	reg[2:0] p2_score = 0;
+	reg[3:0] p1_score;
+	initial p1_score <= 0;
+	reg[3:0] p2_score;
+	initial p2_score <= 0;
 	
 	assign p1_fault = grid[p1_position_y][p1_position_x];
 	assign p2_fault = grid[p2_position_y][p2_position_x];
@@ -151,12 +158,13 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	
 	integer i, j;
 	// State machine
-	always @(posedge DIV_CLK[24])
+	always @(posedge DIV_CLK[23])
 	begin
 		if (reset)
 		begin
 			state <= I;
-			//TODO reset scores
+			p1_score <= 0;
+			p2_score <= 0;
 		end
 		else
 			case (state)	
@@ -169,7 +177,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 					p1_position_x <= GRID_SIZE/4;
 					p1_position_y <= GRID_SIZE/2;
 					
-					p2_position_x <= GRID_SIZE/4*3;
+					p2_position_x <= GRID_SIZE/4*3 - 2;
 					p2_position_y <= GRID_SIZE/2;
 			
 					// Initialize the grid
@@ -192,44 +200,47 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 				begin
 					// Data transfers
 					// Mark the grid at last clock's position to be visited
-					grid[p1_position_y][p1_position_x] <= 1;
-					grid[p2_position_y][p2_position_x] <= 1;
+					if (!collision)
+					begin
+						grid[p1_position_y][p1_position_x] <= 1;
+						grid[p2_position_y][p2_position_x] <= 1;
 			
-					// Move player1 and player2 forward one space in their current direction
-					case(p1_dir) //TODO fix these...
-						UP:
-							p1_position_y <= p1_position_y - 1;
-						DOWN:
-							p1_position_y <= p1_position_y + 1;
-						LEFT:
-							p1_position_x <= p1_position_x - 1;
-						RIGHT:
-							p1_position_x <= p1_position_x + 1;
-					endcase
-					case(p2_dir)
-						UP:
-							p2_position_y <= p2_position_y - 1;
-						DOWN:
-							p2_position_y <= p2_position_y + 1;
-						LEFT:
-							p2_position_x <= p2_position_x - 1;
-						RIGHT:
-							p2_position_x <= p2_position_x + 1;
-					endcase
+						// Move player1 and player2 forward one space in their current direction
+						case(p1_dir) //TODO fix these...
+							UP:
+								p1_position_y <= p1_position_y - 1;
+							DOWN:
+								p1_position_y <= p1_position_y + 1;
+							LEFT:
+								p1_position_x <= p1_position_x - 1;
+							RIGHT:
+								p1_position_x <= p1_position_x + 1;
+						endcase
+						case(p2_dir)
+							UP:
+								p2_position_y <= p2_position_y - 1;
+							DOWN:
+								p2_position_y <= p2_position_y + 1;
+							LEFT:
+								p2_position_x <= p2_position_x - 1;
+							RIGHT:
+								p2_position_x <= p2_position_x + 1;
+						endcase
+					end
 					
 					// State transfers
 					if (collision)
 					begin
 						state <= COLLISION;
 						if(p2_fault)
-							p1_score = p1_score+1;
+							p1_score <= p1_score+1;
 						if(p1_fault)
-							p2_score = p2_score+1;
+							p2_score <= p2_score+1;
 					end
 				end
 				COLLISION:
 				begin
-					if (start) //TODO ack
+					if (start)
 						state <= DONE;
 				end
 				DONE:
@@ -242,7 +253,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 			endcase
 	end
 	
-	localparam SCALE = 8;
+	localparam SCALE = 3;
 	wire ScaledX, ScaledY;
 	
 	localparam x_offset = (640-GRID_SIZE*SCALE)/2;
@@ -252,11 +263,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	assign ScaledY = CounterY/SCALE;
 	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1*SCALE);
 	// Players' current locations
-	wire G = p1_fault&&!p2_fault || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = !p1_fault&&p2_fault || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = p2_fault&&!p1_fault || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
+	wire B = !p2_fault&&p1_fault || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
 	// The outer border
-	wire R = onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
+	wire R = collision || onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
 		
 	always @(posedge clk)
 	begin
@@ -302,8 +313,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	
 	assign SSD3 = keyboard_buffer[7:4];
 	assign SSD2 = keyboard_buffer[3:0];
-	assign SSD1 = 4'b1111; //TODO want to display scores in this and SSD0?
-	assign SSD0 = 4'b0000;
+	assign SSD1 = p1_score;
+	assign SSD0 = p2_score;
 	
 	// need a scan clk for the seven segment display 
 	// 191Hz (50MHz / 2^18) works well
