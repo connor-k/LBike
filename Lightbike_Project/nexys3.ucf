@@ -39,7 +39,7 @@ Net "PS2_DAT"	LOC = J13 | IOSTANDARD = LVCMOS33 | PULLUP;
 Net "PS2_CLK"	LOC = L12 | IOSTANDARD = LVCMOS33 | PULLUP;
 
 ## Switches for Nexys-3
-#Net "Sw0" LOC = T10 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L29N_GCLK2, Sch name = SW0
+Net "Sw0" LOC = T10 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L29N_GCLK2, Sch name = SW0
 #Net "Sw1" LOC = T9 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L32P_GCLK29, Sch name = SW1
 #Net "Sw2" LOC = V9 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L32N_GCLK28, Sch name = SW2
 #Net "Sw3" LOC = M8 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L40P, Sch name = SW3
