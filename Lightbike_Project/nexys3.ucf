@@ -34,6 +34,9 @@ Net "ClkPort" LOC=V10 | IOSTANDARD=LVCMOS33;
 Net "ClkPort" TNM_NET = sys_clk_pin;
 TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 100000 kHz;
 
+## PS2 inputs for Nexys-3
+Net "PS2_DAT"	LOC = J13 | IOSTANDARD = LVCMOS33 | PULLUP;
+Net "PS2_CLK"	LOC = L12 | IOSTANDARD = LVCMOS33 | PULLUP;
 
 ## Switches for Nexys-3
 Net "Sw0" LOC = T10 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L29N_GCLK2, Sch name = SW0
