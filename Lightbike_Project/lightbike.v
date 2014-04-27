@@ -241,9 +241,9 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	assign ScaledX = CounterX/SCALE;
 	assign ScaledY = CounterY/SCALE;
-	assign onGrid = (ScaledX>=x_offset&&ScaledX<=x_offset+GRID_SIZE*SCALE&&ScaledY>=y_offset&&ScaledY<=y_offset+GRID_SIZE*SCALE);
+	assign onGrid = (CounterX>=x_offset&&CounterX<=x_offset+GRID_SIZE*SCALE&&CounterY>=y_offset&&CounterY<=y_offset+GRID_SIZE*SCALE);
 	// Players' current locations
-	wire G = q_I || q_Done || p1_position_y == CounterY && p1_position_x == CounterX || p2_position_y == CounterY && p2_position_x == CounterX;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = q_I || q_Done || p1_position_y == ScaledY && p1_position_x == ScaledX || p2_position_y == ScaledY && p2_position_x == ScaledX;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
 	wire B = onGrid&&grid[ScaledY-y_offset][ScaledX-x_offset];
 	// The outer border
