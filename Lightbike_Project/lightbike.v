@@ -52,12 +52,34 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	always @(posedge scan_ready)
 	begin
 		//do something with keyboard_in
+		reset = 1'b0;
+		start = 1'b0;
 		keyboard_buffer <= keyboard_input;
+		case(keyboard_input)
+			16'h1D://W
+				p1_dir = UP;
+			16'h1B://S
+				p1_dir = DOWN;
+			16'h1C://A
+				p1_dir = LEFT;
+			16'h23://D
+				p1_dir = RIGHT;
+			16'h75://UP
+				p2_dir = UP;
+			16'h72://DOWN
+				p2_dir = DOWN;
+			16'h66://LEFT
+				p2_dir = LEFT;
+			16'h74://RIGHT
+				p2_dir = RIGHT;
+			16'h76://escape
+				reset = 1'b1;
+			16'h29://space
+				start = 1'b1;
+		endcase
 	end
 	
 	BUF BUF1 (board_clk, ClkPort);
-	assign reset = keyboard_buffer[7:0] == 16'h76;
-	assign start = keyboard_buffer[7:0] == 16'h29;
 	reg [25:0]	DIV_CLK;
 	//generate the DIV_CLK signal
 	always @ (posedge board_clk, posedge reset)  
@@ -85,7 +107,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	localparam GRID_SIZE = 32;
 	localparam LOG_GRID_SIZE = 8;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
-	reg [1:0] p1_direction;
+	reg [1:0] p1_dir;
+	reg [1:0] p2_dir;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_x;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_y;
 	
@@ -113,7 +136,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	
 	// localparam's for the state case statements
 	localparam
-	I = 4'b0001, DRIVING = 4'b0010, COLLISION = 4'b0100, DONE = 4'b1000, UNK = 4'bXXXX;
+	I = 4'b0001, DRIVING = 4'b0010, COLLISION = 4'b0100, DONE = 4'b1000, UNK = 4'bXXXX,
+	UP = 2'b00, RIGHT = 2'b01, DOWN = 2'b10, LEFT = 2'b11;
 	
 	integer i, j;
 	// State machine
@@ -124,7 +148,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 			state <= I;
 			p1_position_x <= 8'bx;
 			p1_position_y <= 8'bx;
-			p1_direction = 2'bXX;
+			p1_dir = 2'bXX;
 			
 			// Initialize the grid
 			for (j = 1; j < GRID_SIZE - 2; j = j + 1)
@@ -145,7 +169,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					
 			p1_position_x <= 10;
 			p1_position_y <= 10;
-			p1_direction = 0;
+			p1_dir = 0;
 			
 			// Initialize the grid
 			for (j = 0; j < GRID_SIZE - 1; j = j + 1)
@@ -170,7 +194,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					grid[p1_position_y][p1_position_x] <= 1;
 					
 					// Move forward one space
-					case(p1_direction)
+					case(p1_dir)
 						2'b00:
 							p1_position_x <= p1_position_x+1;
 						2'b01:
