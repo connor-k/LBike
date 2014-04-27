@@ -21,7 +21,9 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	/*  LOCAL SIGNALS */
 	wire ClkPort, board_clk, clk, button_clk;
-	reg start, reset;
+	wire start, reset;
+	assign start = keyboard_buffer == 16'h29;
+	assign reset = keyboard_buffer == 16'h76;
 	
 	/* Keyboard Codes 
 	   start = ack = space = 29
@@ -60,8 +62,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 		else
 		begin
 			//do something with keyboard_in
-			start = 1'b0;
-			reset = 1'b0;
 			keyboard_buffer <= keyboard_input;
 			case(keyboard_input)
 				16'h1D://W
@@ -80,10 +80,10 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 					p2_dir = LEFT;
 				16'h74://RIGHT
 					p2_dir = RIGHT;
-				16'h76://escape
+				/*/16'h76://escape
 					reset = 1'b1;
 				16'h29://space
-					start = 1'b1;
+					start = 1'b1; */
 			endcase
 		end
 	end
@@ -112,7 +112,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
 	localparam GRID_SIZE = 32;
-	localparam LOG_GRID_SIZE = 8;
+	localparam LOG_GRID_SIZE = 5;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
 	reg [1:0] p1_dir;
 	reg [1:0] p2_dir;
@@ -149,9 +149,9 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	integer i, j;
 	// State machine
-	always @(posedge DIV_CLK[25])
+	always @(posedge DIV_CLK[25], posedge reset)
 	begin
-		if (reset) 
+		if (reset)
 		begin
 			state <= I;
 		end
@@ -233,7 +233,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 			endcase
 	end
 	
-	localparam SCALE = 4;
+	localparam SCALE = 8;
 	wire ScaledX, ScaledY;
 	
 	localparam x_offset = (640-GRID_SIZE*SCALE)/2;
@@ -241,11 +241,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b,
 	
 	assign ScaledX = CounterX/SCALE;
 	assign ScaledY = CounterY/SCALE;
-	assign onGrid = (CounterX>=x_offset&&CounterX<=x_offset+GRID_SIZE*SCALE&&CounterY>=y_offset&&CounterY<=y_offset+GRID_SIZE*SCALE);
+	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE);
 	// Players' current locations
-	wire G = q_I || q_Done || p1_position_y == ScaledY && p1_position_x == ScaledX || p2_position_y == ScaledY && p2_position_x == ScaledX;// && CounterY<=(position+10) && CounterX[8:5]==7;
+	wire G = q_I || q_Done || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
 	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = onGrid&&grid[ScaledY-y_offset][ScaledX-x_offset];
+	wire B = onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
 	// The outer border
 	wire R = ~onGrid;
 		
