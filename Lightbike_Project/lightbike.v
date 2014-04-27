@@ -7,8 +7,10 @@
 module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1, btnU, btnD, btnL, btnR, btnC,
 	St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar,
 	An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
-	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7);
+	LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7,PS2_DAT,PS2_CLK);
 	input ClkPort, Sw0, btnC, btnU, btnD, btnL, btnR, Sw0, Sw1;
+	input PS2_DAT;	//this needs to be defined in UCF
+	input PS2_CLK;	//this needs to be defined in UCF
 	output St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar;
 	output vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b;
 	output An0, An1, An2, An3, Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp;
@@ -25,14 +27,46 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	BUF BUF3 (start, Sw1);
 	
 	reg [25:0]	DIV_CLK;
+	//generate the DIV_CLK signal
 	always @ (posedge board_clk, posedge reset)  
 	begin : CLOCK_DIVIDER
       if (reset)
 			DIV_CLK <= 0;
       else
 			DIV_CLK <= DIV_CLK + 1'b1;
-	end	
+	end
 
+	wire[7:0] keyboard_input;
+	wire read;
+	wire scan_ready;
+	wire CLOCK_50;
+	assign CLOCK_50 = DIV_CLK[0];
+	
+	pulse_gen pulser(
+		.pulse_out(read),
+		.trigger_in(scan_ready),
+		.clk(CLOCK_50)
+	);
+	
+	keyboard kb(
+		.keyboard_clk(PS2_CLK),
+		.keyboard_data(PS2_DAT),
+		.clock50(CLOCK_50),
+		.reset(reset),
+		.read(read),
+		.scan_ready(scan_ready),
+		.scan_code(keyboard_input)
+	);
+	
+	always @(posedge scan_ready)
+	begin
+		//do something with keyboard_in
+		SSD2 <= keyboard_in[7:4];
+		SSD3 <= keyboard_in[3:0];
+	end
+	
+
+	
 	assign	button_clk = DIV_CLK[18];
 	assign	clk = DIV_CLK[1];
 	assign 	{St_ce_bar, St_rp_bar, Mt_ce_bar, Mt_St_oe_bar, Mt_St_we_bar} = {5'b11111};
@@ -40,7 +74,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	wire inDisplayArea;
 	wire [9:0] CounterX;
 	wire [9:0] CounterY;
-
+	
 	hvsync_generator syncgen(.clk(clk), .reset(reset),.vga_h_sync(vga_h_sync), .vga_v_sync(vga_v_sync), .inDisplayArea(inDisplayArea), .CounterX(CounterX), .CounterY(CounterY));
 	
 	/////////////////////////////////////////////////////////////////
@@ -226,8 +260,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	wire 	[3:0]	SSD0, SSD1, SSD2, SSD3;
 	wire 	[1:0] ssdscan_clk;
 	
-	assign SSD3 = 4'b1111;
-	assign SSD2 = 4'b1111;
+//	assign SSD3 = 4'b1111;
+//	assign SSD2 = 4'b1111;
 	assign SSD1 = 4'b1111;
 	assign SSD0 = 4'b0000;//position[3:0];
 	
