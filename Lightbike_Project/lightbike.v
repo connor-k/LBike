@@ -88,6 +88,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	reg [1:0] p1_direction;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_x;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_y;
+	reg [LOG_GRID_SIZE - 1:0] p2_position_x;
+	reg [LOG_GRID_SIZE - 1:0] p2_position_y;
 	
 	// Assign player directions
 	/* Keyboard codes:
@@ -120,7 +122,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 	always @(posedge DIV_CLK[25])
 	begin
 		if (reset) 
-		  begin
+		begin
 			state <= I;
 			p1_position_x <= 8'bx;
 			p1_position_y <= 8'bx;
@@ -134,7 +136,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					grid[j][i] <= 1'bX;
 				end
 			end
-		  end
+		end
 		else
 			case (state)	
 				I:
@@ -143,25 +145,25 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					if (start)
 						state <= DRIVING;
 					
-			p1_position_x <= 10;
-			p1_position_y <= 10;
-			p1_direction = 0;
+					p1_position_x <= 10;
+					p1_position_y <= 10;
+					p1_direction = 0;
 			
-			// Initialize the grid
-			for (j = 0; j < GRID_SIZE - 1; j = j + 1)
-			begin
-				grid[j][0] <= 1;
-				grid[j][GRID_SIZE - 1] <= 1;
-				grid[0][j] <= 1;
-				grid[GRID_SIZE - 1][j] <= 1;
-			end
-			for (j = 1; j < GRID_SIZE - 2; j = j + 1)
-			begin
-				for (i = 1; i < GRID_SIZE - 2; i = i + 1)
-				begin
-					grid[j][i] <= 0;
-				end
-			end//todo indent
+					// Initialize the grid
+					for (j = 0; j < GRID_SIZE - 1; j = j + 1)
+					begin
+						grid[j][0] <= 1;
+						grid[j][GRID_SIZE - 1] <= 1;
+						grid[0][j] <= 1;
+						grid[GRID_SIZE - 1][j] <= 1;
+					end
+					for (j = 1; j < GRID_SIZE - 2; j = j + 1)
+					begin
+						for (i = 1; i < GRID_SIZE - 2; i = i + 1)
+						begin
+							grid[j][i] <= 0;
+						end
+					end
 				end		
 				DRIVING:
 				begin
@@ -169,18 +171,27 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					// Mark the grid at last clock's position to be visited
 					grid[p1_position_y][p1_position_x] <= 1;
 					
-					// Move forward one space
+					// Move player1 and player2 forward one space in their current direction
 					case(p1_direction)
-						2'b00:
-							p1_position_x <= p1_position_x+1;
-						2'b01:
-							p1_position_y <= p1_position_y-1;
-						2'b10:
-							p1_position_x <= p1_position_x-1;
-						2'b11:
-							p1_position_y <= p1_position_y+1;
+						UP:
+							p1_position_y <= p1_position_y - 1;
+						DOWN:
+							p1_position_y <= p1_position_y + 1;
+						LEFT:
+							p1_position_x <= p1_position_x - 1;
+						RIGHT:
+							p1_position_x <= p1_position_x + 1;
 					endcase
-					//TODO P2
+					case(p2_dir)
+						UP:
+							p2_position_y <= p2_position_y - 1;
+						DOWN:
+							p2_position_y <= p2_position_y + 1;
+						LEFT:
+							p2_position_x <= p2_position_x - 1;
+						RIGHT:
+							p2_position_x <= p2_position_x + 1;
+					endcase
 					
 					// State transfers
 					if (collision)
@@ -200,13 +211,6 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0, Sw1,
 					state <= UNK;
 			endcase
 	end
-			/*if(reset)
-				position<=240;
-			else if(btnD && ~btnU)
-				position<=position+2;
-			else if(btnU && ~btnD)
-				position<=position-2;
-	end */
 
 	// Players' current locations
 	wire R = q_I || q_Done || p1_position_y == CounterY && p1_position_x == CounterX;// && CounterY<=(position+10) && CounterX[8:5]==7;
