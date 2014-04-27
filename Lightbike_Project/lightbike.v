@@ -108,8 +108,8 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	/////////////////////////////////////////////////////////////////
 	///////////////		VGA control starts here		/////////////////
 	/////////////////////////////////////////////////////////////////
-	localparam GRID_SIZE = 128;
-	localparam LOG_GRID_SIZE = 7;
+	localparam GRID_SIZE = 50;
+	localparam LOG_GRID_SIZE = 6;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
 	reg [1:0] p1_dir;
 	reg [1:0] p2_dir;
@@ -253,14 +253,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 			endcase
 	end
 	
-	localparam SCALE = 3;
-	wire ScaledX, ScaledY;
+	localparam SCALE = 8;
 	
 	localparam x_offset = (640-GRID_SIZE*SCALE)/2;
 	localparam y_offset = (480-GRID_SIZE*SCALE)/2;
 	
-	assign ScaledX = CounterX/SCALE;
-	assign ScaledY = CounterY/SCALE;
 	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1*SCALE);
 	// Players' current locations
 	wire G = !p1_fault&&p2_fault || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
