@@ -1,6 +1,6 @@
 /* 
  * Connor Kerns & Nolan Miller
- * EE 201 Final Project -- State Machine (One-Hot)
+ * EE 201 Final Project
  * Spring 2014
 */
 `timescale 1ns / 1ps
@@ -25,12 +25,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	wire reset;
 	BUF BUF2(reset, Sw0);
 	
-	/* Keyboard Codes 
-	   start = ack = space = 29
-		reset = escape = 76
-	*/
 	wire[7:0] keyboard_input;
 	reg[7:0] keyboard_buffer;
+	// Keyboard SM Transition Codes:
+	//	start and ack mapped to space (= 29)
+	//	reset mapped to escape (= 76)
 	wire read;
 	wire scan_ready;
 	wire CLOCK_50;
@@ -52,10 +51,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 		.scan_code(keyboard_input)
 	);
 	
+	/* Handle keyboard input */
 	always @(posedge scan_ready)
 	begin
 		keyboard_buffer <= keyboard_input;
-		start<=1'b0;
+		start <= 1'b0;
 		// Get directions
 		if (q_I)
 		begin
@@ -87,7 +87,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	BUF BUF1 (board_clk, ClkPort);
 	reg [24:0]	DIV_CLK;
 	initial DIV_CLK = 0;
-	//generate the DIV_CLK signal
+	// Generate the DIV_CLK signal
 	always @ (posedge board_clk)  
 	begin : CLOCK_DIVIDER
 		if (reset)
@@ -106,30 +106,33 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	hvsync_generator syncgen(.clk(clk), .reset(reset),.vga_h_sync(vga_h_sync), .vga_v_sync(vga_v_sync), .inDisplayArea(inDisplayArea), .CounterX(CounterX), .CounterY(CounterY));
 	
 	/////////////////////////////////////////////////////////////////
-	///////////////		VGA control starts here		/////////////////
+	///////////////		VGA & game control starts here		/////////
 	/////////////////////////////////////////////////////////////////
+	// Registers to represent the playing grid
 	localparam GRID_SIZE = 50;
 	localparam LOG_GRID_SIZE = 6;
 	reg [GRID_SIZE - 1:0] grid[GRID_SIZE - 1:0]; // 256*256 locations in the grid (2d matrix)
+
+	// The current position and direction each player is heading
 	reg [1:0] p1_dir;
 	reg [1:0] p2_dir;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_x;
 	reg [LOG_GRID_SIZE - 1:0] p1_position_y;
 	reg [LOG_GRID_SIZE - 1:0] p2_position_x;
 	reg [LOG_GRID_SIZE - 1:0] p2_position_y;
+
+	// Store the number of games each player has won
+	reg[3:0] p1_score;
+	initial p1_score <= 0;
+	reg[3:0] p2_score;
+	initial p2_score <= 0;
 	
-	// Assign player directions
-	/* Keyboard codes:
-						W = 1D
-						S = 1B
-						A = 1C
-						D = 23
-						UP = 75
-						DOWN = 72
-						LEFT = 66
-						RIGHT = 74
-					*/
-	
+	// Determine which player is at fault for a collision (or if both)
+	assign p1_fault = grid[p1_position_y][p1_position_x];
+	assign p2_fault = grid[p2_position_y][p2_position_x];
+	assign both_fault = ((p1_position_y == p2_position_y) && (p1_position_x == p2_position_x));
+	assign collision =  p1_fault|| p2_fault||both_fault;
+
 	// States
 	// Store the current state and output it to top module.
 	wire q_I, q_Straight, q_Collision, q_Done;
@@ -137,25 +140,14 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	wire p1_fault;
 	wire p2_fault;
 	wire both_fault;
-	
-	reg[3:0] p1_score;
-	initial p1_score <= 0;
-	reg[3:0] p2_score;
-	initial p2_score <= 0;
-	
-	assign p1_fault = grid[p1_position_y][p1_position_x];
-	assign p2_fault = grid[p2_position_y][p2_position_x];
-	assign both_fault = ((p1_position_y == p2_position_y) && (p1_position_x == p2_position_x));
-	assign collision =  p1_fault|| p2_fault||both_fault;
-	
 	reg [3:0] state;
 	assign {q_Done, q_Collision, q_Driving, q_I} = state;
 	
 	// localparam's for the state case statements
-	localparam
-	I = 4'b0001, DRIVING = 4'b0010, COLLISION = 4'b0100, DONE = 4'b1000, UNK = 4'bXXXX,
-	UP = 2'b00, RIGHT = 2'b01, DOWN = 2'b10, LEFT = 2'b11;
+	localparam I = 4'b0001, DRIVING = 4'b0010, COLLISION = 4'b0100, DONE = 4'b1000,
+	UNK = 4'bXXXX, UP = 2'b00, RIGHT = 2'b01, DOWN = 2'b10, LEFT = 2'b11;
 	
+	// Local variables to loop through the grid during processing
 	integer i, j;
 	// State machine
 	always @(posedge DIV_CLK[23])
@@ -174,13 +166,14 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 					if (start)
 						state <= DRIVING;
 						
+					// Set players' starting positions
 					p1_position_x <= GRID_SIZE/4;
 					p1_position_y <= GRID_SIZE/2;
 					
 					p2_position_x <= GRID_SIZE/4*3 - 2;
 					p2_position_y <= GRID_SIZE/2;
 			
-					// Initialize the grid
+					// Initialize the border of the grid to visited (out of bounds)
 					for (j = 0; j < GRID_SIZE - 1; j = j + 1)
 					begin
 						grid[j][0] <= 1;
@@ -188,6 +181,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 						grid[0][j] <= 1;
 						grid[GRID_SIZE - 1][j] <= 1;
 					end
+					// Initialize the inside of the grid to unvisited (valid positions)
 					for (j = 1; j < GRID_SIZE - 2; j = j + 1)
 					begin
 						for (i = 1; i < GRID_SIZE - 2; i = i + 1)
@@ -206,7 +200,7 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 						grid[p2_position_y][p2_position_x] <= 1;
 			
 						// Move player1 and player2 forward one space in their current direction
-						case(p1_dir) //TODO fix these...
+						case(p1_dir)
 							UP:
 								p1_position_y <= p1_position_y - 1;
 							DOWN:
@@ -253,19 +247,23 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 			endcase
 	end
 	
+	// Define a scale for VGA display (how large one grid square is)
 	localparam SCALE = 8;
-	
+	// Offsets to center the game on the screen
 	localparam x_offset = (640-GRID_SIZE*SCALE)/2;
 	localparam y_offset = (480-GRID_SIZE*SCALE)/2;
 	
-	assign onGrid = (CounterX>=x_offset&&CounterX<x_offset+GRID_SIZE*SCALE-1*SCALE&&CounterY>=y_offset&&CounterY<y_offset+GRID_SIZE*SCALE-1*SCALE);
-	// Players' current locations
-	wire G = !p1_fault&&p2_fault || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;// && CounterY<=(position+10) && CounterX[8:5]==7;
-	// Players' previously visited squares, so counterx/y as indices of Grid array
-	wire B = !p2_fault&&p1_fault || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
-	// The outer border
+	// Determine the appropriate colors for each pixel
+	assign onGrid = (CounterX >= x_offset && CounterX < x_offset + GRID_SIZE*SCALE - SCALE && CounterY >= y_offset && CounterY < y_offset + GRID_SIZE*SCALE - SCALE);
+	// Green is player 1's head
+	wire G = !p1_fault && p2_fault || p1_position_y == (CounterY - y_offset)/SCALE && p1_position_x == (CounterX - x_offset)/SCALE;
+	// Blue is player 2's head
+	wire B = !p2_fault && p1_fault || p2_position_y == (CounterY - y_offset)/SCALE && p2_position_x == (CounterX - x_offset)/SCALE;
+	// Red is the outer border and previously visited squares (light walls)
 	wire R = collision || onGrid&&grid[(CounterY-y_offset)/SCALE][(CounterX-x_offset)/SCALE];
-		
+	// Everything else is black
+	
+	// Set the calculated color
 	always @(posedge clk)
 	begin
 		vga_g <= G & inDisplayArea;
@@ -282,14 +280,13 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	/////////////////////////////////////////////////////////////////
 	`define QI 			 4'b0001
 	`define QDRIVING 	 4'b0010
-	`define QCOLLISION 4'b0100
+	`define QCOLLISION   4'b0100
 	`define QDONE 		 4'b1000
 	
-	//reg [3:0] p2_score;
-	//reg [3:0] p1_score;
+	// Light up the LEDs to display the current status of the game (states, signals)
 	wire LD0, LD1, LD2, LD3, LD4, LD5, LD6, LD7;
-	assign LD0 = DIV_CLK[24];//(p1_score == 4'b1010);
-	assign LD1 = start;//(p2_score == 4'b1010);
+	assign LD0 = DIV_CLK[24];
+	assign LD1 = start;
 	assign LD2 = reset;
 	assign LD3 = 0;
 	assign LD4 = (state == `QI);
@@ -304,10 +301,11 @@ module lightbike(ClkPort, vga_h_sync, vga_v_sync, vga_r, vga_g, vga_b, Sw0,
 	/////////////////////////////////////////////////////////////////
 	//////////////  	  SSD control starts here 	 ///////////////////
 	/////////////////////////////////////////////////////////////////
-	reg 	[3:0]	SSD;
-	wire 	[3:0]	SSD0, SSD1, SSD2, SSD3;
-	wire 	[1:0] ssdscan_clk;
+	reg 	[3:0]  SSD;
+	wire 	[3:0]  SSD0, SSD1, SSD2, SSD3;
+	wire 	[1:0]  ssdscan_clk;
 	
+	// Display the keyboard code for the most recent key pressed and the player scores on the SSD
 	assign SSD3 = keyboard_buffer[7:4];
 	assign SSD2 = keyboard_buffer[3:0];
 	assign SSD1 = p1_score;

@@ -1,8 +1,6 @@
-EE201-Final-Project
-===================
+LBike
+=====
 
-Awesome? Yes.
+A 2-player snake-like game (inspired by Tron) for the Nexys 3 FPGA. It uses the vga port and a USB keyboard.
 
-A 2-player Tron snake-like game. [Project Proposal](https://github.com/connor-k/EE201-Final-Project/blob/master/ProjectProposal.pdf)
-
-BEST PROJECT EVER!
+Some design notes are included in our initial [project proposal](https://github.com/connor-k/LBike/blob/master/ProjectProposal.pdf).
